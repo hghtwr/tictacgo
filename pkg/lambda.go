@@ -1,6 +1,8 @@
 package pkg
 
 import (
+	"github.com/pulumi/pulumi-aws-native/sdk/go/aws"
+	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/apigatewayv2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/iam"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/lambda"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -40,4 +42,24 @@ func OnConnect(ctx *pulumi.Context, role *iam.Role) (function *lambda.Function, 
 		args)
 
 	return function, err
+}
+
+func OnConnectPermission(ctx *pulumi.Context, function *lambda.Function, route *apigatewayv2.Route, gw *apigatewayv2.Api) (permission *lambda.Permission, err error) {
+	accountId, err := aws.GetAccountId(ctx)
+	if err != nil {
+		return permission, err
+	}
+	arn := gw.ID().ApplyT(func(id pulumi.ID) string {
+		return string(id)
+	}).(pulumi.StringOutput)
+	target := pulumi.Sprintf("arn:aws:execute-api:eu-central-1:%s:%s/*/$connect", accountId.AccountId, arn)
+
+	permission, err = lambda.NewPermission(ctx, "tictacgo-connect-apigateway", &lambda.PermissionArgs{
+		Action:    pulumi.String("lambda:InvokeFunction"),
+		Function:  function.Name,
+		Principal: pulumi.String("apigateway.amazonaws.com"),
+		SourceArn: target,
+	})
+
+	return permission, err
 }

@@ -1,7 +1,6 @@
 package pkg
 
 import (
-	"fmt"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/apigatewayv2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/lambda"
 
@@ -58,11 +57,24 @@ func OnConnectRoute(ctx *pulumi.Context, gw *apigatewayv2.Api, integration *apig
 	}).(pulumi.StringOutput)
 
 	target := pulumi.Sprintf("integrations/%s", intId)
-	fmt.Println(integration)
 	route, err = apigatewayv2.NewRoute(ctx, "onconnect-route", &apigatewayv2.RouteArgs{
 		ApiId:    gw.ID(),
 		RouteKey: pulumi.String("$connect"),
 		Target:   target,
 	})
 	return route, err
+}
+
+func OnConnectResponse(ctx *pulumi.Context, gw *apigatewayv2.Api, integration *apigatewayv2.Integration) (response *apigatewayv2.IntegrationResponse, err error) {
+
+	integrationId := integration.ID().ApplyT(func(id pulumi.ID) string {
+		return string(id)
+	}).(pulumi.StringOutput)
+
+	response, err = apigatewayv2.NewIntegrationResponse(ctx, "onconnect-response", &apigatewayv2.IntegrationResponseArgs{
+		ApiId:                  gw.ID(),
+		IntegrationId:          integrationId,
+		IntegrationResponseKey: pulumi.String("/200/"),
+	})
+	return response, err
 }

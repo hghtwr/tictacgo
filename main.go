@@ -31,11 +31,19 @@ func main() {
 			return err
 		}
 
-		_, err = pkg.OnConnectRoute(ctx, gw, onConnectIntegration)
+		onConnectRoute, err := pkg.OnConnectRoute(ctx, gw, onConnectIntegration)
 		if err != nil {
 			return err
 		}
 
+		_, err = pkg.OnConnectResponse(ctx, gw, onConnectIntegration)
+		if err != nil {
+			return err
+		}
+		_, err = pkg.OnConnectPermission(ctx, onConnectLambdaFunction, onConnectRoute, gw)
+		if err != nil {
+			return err
+		}
 		_, err = pkg.ApiGatewayStage(ctx, gw)
 		if err != nil {
 			return err
