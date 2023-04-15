@@ -18,8 +18,8 @@ func ApiGateway(ctx *pulumi.Context) (gw *apigatewayv2.Api, err error) {
 
 }
 
-func ApiGatewayStage(ctx *pulumi.Context, gw *apigatewayv2.Api) (stage *apigatewayv2.Stage, err error) {
-	stage, err = apigatewayv2.NewStage(ctx, "development", &apigatewayv2.StageArgs{
+func ApiGatewayStage(ctx *pulumi.Context, gw *apigatewayv2.Api, stageName string) (stage *apigatewayv2.Stage, err error) {
+	stage, err = apigatewayv2.NewStage(ctx, "tictacgo-"+stageName, &apigatewayv2.StageArgs{
 		ApiId:      gw.ID(),
 		AutoDeploy: pulumi.Bool(true),
 	})
@@ -35,9 +35,9 @@ func ApiGatewayDeployment(ctx *pulumi.Context, gw *apigatewayv2.Api) (stage *api
 	return stage, err
 }*/
 
-func OnConnectIntegration(ctx *pulumi.Context, gw *apigatewayv2.Api, function *lambda.Function) (onConnectIntegration *apigatewayv2.Integration, err error) {
+func CreateIntegration(ctx *pulumi.Context, gw *apigatewayv2.Api, function *lambda.Function, routeKey string) (onConnectIntegration *apigatewayv2.Integration, err error) {
 
-	onConnectIntegration, err = apigatewayv2.NewIntegration(ctx, "onconnect-integration", &apigatewayv2.IntegrationArgs{
+	onConnectIntegration, err = apigatewayv2.NewIntegration(ctx, "tictacgo-"+routeKey+"-integration", &apigatewayv2.IntegrationArgs{
 		ApiId:                   gw.ID(),
 		IntegrationType:         pulumi.String("AWS_PROXY"),
 		ConnectionType:          pulumi.String("INTERNET"),
@@ -50,31 +50,47 @@ func OnConnectIntegration(ctx *pulumi.Context, gw *apigatewayv2.Api, function *l
 	return onConnectIntegration, err
 }
 
-func OnConnectRoute(ctx *pulumi.Context, gw *apigatewayv2.Api, integration *apigatewayv2.Integration) (route *apigatewayv2.Route, err error) {
+func CreateRoute(ctx *pulumi.Context, gw *apigatewayv2.Api, integration *apigatewayv2.Integration, routeKey string) (route *apigatewayv2.Route, err error) {
 
 	intId := integration.ID().ApplyT(func(id pulumi.ID) string {
 		return string(id)
 	}).(pulumi.StringOutput)
 
 	target := pulumi.Sprintf("integrations/%s", intId)
-	route, err = apigatewayv2.NewRoute(ctx, "onconnect-route", &apigatewayv2.RouteArgs{
-		ApiId:    gw.ID(),
-		RouteKey: pulumi.String("$connect"),
-		Target:   target,
+	route, err = apigatewayv2.NewRoute(ctx, "tictacgo-"+routeKey+"-route", &apigatewayv2.RouteArgs{
+		ApiId:                            gw.ID(),
+		RouteKey:                         pulumi.String(routeKey),
+		Target:                           target,
+		RouteResponseSelectionExpression: pulumi.String("$default"),
 	})
 	return route, err
 }
 
-func OnConnectResponse(ctx *pulumi.Context, gw *apigatewayv2.Api, integration *apigatewayv2.Integration) (response *apigatewayv2.IntegrationResponse, err error) {
+/*
+func CreateResponse(ctx *pulumi.Context, gw *apigatewayv2.Api, integration *apigatewayv2.Integration, routeKey string) (response *apigatewayv2.IntegrationResponse, err error) {
 
-	integrationId := integration.ID().ApplyT(func(id pulumi.ID) string {
+		integrationId := integration.ID().ApplyT(func(id pulumi.ID) string {
+			return string(id)
+		}).(pulumi.StringOutput)
+
+		response, err = apigatewayv2.NewIntegrationResponse(ctx, "tictacgo-"+routeKey+"-response", &apigatewayv2.IntegrationResponseArgs{
+			ApiId:                  gw.ID(),
+			IntegrationId:          integrationId,
+			IntegrationResponseKey: pulumi.String("$default"),
+		})
+		return response, err
+	}
+*/
+func CreateResponse(ctx *pulumi.Context, gw *apigatewayv2.Api, route *apigatewayv2.Route, routeKey string) (response *apigatewayv2.RouteResponse, err error) {
+
+	integrationId := route.ID().ApplyT(func(id pulumi.ID) string {
 		return string(id)
 	}).(pulumi.StringOutput)
 
-	response, err = apigatewayv2.NewIntegrationResponse(ctx, "onconnect-response", &apigatewayv2.IntegrationResponseArgs{
-		ApiId:                  gw.ID(),
-		IntegrationId:          integrationId,
-		IntegrationResponseKey: pulumi.String("/200/"),
+	response, err = apigatewayv2.NewRouteResponse(ctx, "tictacgo-"+routeKey+"-response", &apigatewayv2.RouteResponseArgs{
+		ApiId:            gw.ID(),
+		RouteId:          integrationId,
+		RouteResponseKey: pulumi.String("$default"),
 	})
 	return response, err
 }
