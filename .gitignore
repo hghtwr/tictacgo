@@ -1,1 +1,3 @@
 *.zip
+.aws-sam
+template.yaml

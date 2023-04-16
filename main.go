@@ -76,6 +76,37 @@ func main() {
 		if err != nil {
 			return err
 		}
+		//############################ Setup #################################
+		onSetupIamRole, err := pkg.CreateIam(ctx, "setup")
+
+		if err != nil {
+			return err
+		}
+
+		onSetupLambdaFunction, err := pkg.CreateFunction(ctx, onSetupIamRole, "setup")
+		if err != nil {
+			return err
+		}
+
+		onSetupIntegration, err := pkg.CreateIntegration(ctx, gw, onSetupLambdaFunction, "setup")
+		if err != nil {
+			return err
+		}
+
+		onSetupRoute, err := pkg.CreateRoute(ctx, gw, onSetupIntegration, "setup")
+		if err != nil {
+			return err
+		}
+
+		_, err = pkg.CreateResponse(ctx, gw, onSetupRoute, "setup")
+		if err != nil {
+			return err
+		}
+		_, err = pkg.CreateLambdaPermission(ctx, onSetupLambdaFunction, onSetupRoute, gw, "setup")
+		if err != nil {
+			return err
+		}
+
 		//############################ Turn #################################
 		onTurnIamRole, err := pkg.CreateIam(ctx, "turn")
 

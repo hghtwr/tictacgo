@@ -1,16 +1,81 @@
 package pkg
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/pulumi/pulumi-aws-native/sdk/go/aws"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/apigatewayv2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/iam"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/lambda"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	"strings"
 )
 
 func CreateIam(ctx *pulumi.Context, routeKey string) (iamRole *iam.Role, err error) {
+	accountId, err := aws.GetAccountId(ctx)
+	if err != nil {
+		return iamRole, err
+	}
 	iamRole, err = iam.NewRole(ctx, "tictacgo-"+strings.Trim(routeKey, "$"), &iam.RoleArgs{
+		InlinePolicies: iam.RoleInlinePolicyArray{
+			&iam.RoleInlinePolicyArgs{
+				Name: pulumi.String(fmt.Sprintf("manage-api-%s", strings.Trim(routeKey, "$"))),
+				Policy: pulumi.String(fmt.Sprintf(`{
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Action": "execute-api:ManageConnections",
+							"Resource": "arn:aws:execute-api:eu-central-1:%s:4cpq656h77/tictacgo-development-*/POST/@connections/*"
+						}
+					]
+				}`, accountId.AccountId)),
+			},
+			&iam.RoleInlinePolicyArgs{
+				Name: pulumi.String(fmt.Sprintf("logs-%s", strings.Trim(routeKey, "$"))),
+				Policy: pulumi.String(fmt.Sprintf(`{
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Action": "logs:CreateLogGroup",
+							"Resource": "arn:aws:logs:eu-central-1:%s:*"
+						},
+						{
+							"Effect": "Allow",
+							"Action": [
+								"logs:CreateLogStream",
+								"logs:PutLogEvents"
+							],
+							"Resource": [
+								"arn:aws:logs:eu-central-1:572618378599:log-group:/aws/lambda/tictacgo-%s-*:*"
+							]
+						}
+					]
+				}`, accountId.AccountId, strings.Trim(routeKey, "$"))),
+			},
+			&iam.RoleInlinePolicyArgs{
+				Name: pulumi.String(fmt.Sprintf("dynamodb-%s", strings.Trim(routeKey, "$"))),
+				Policy: pulumi.String(fmt.Sprintf(`{
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Sid": "VisualEditor0",
+							"Effect": "Allow",
+							"Action": [
+								"dynamodb:PutItem",
+								"dynamodb:DeleteItem",
+								"dynamodb:GetItem",
+								"dynamodb:Scan",
+								"dynamodb:Query",
+								"dynamodb:UpdateItem"
+							],
+							"Resource": "arn:aws:dynamodb:eu-central-1:%s:table/*"
+						}
+					]
+				}`, accountId.AccountId)),
+			},
+		},
 		AssumeRolePolicy: pulumi.String(`{
 				"Version": "2012-10-17",
 				"Statement": [{
