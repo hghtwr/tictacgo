@@ -119,6 +119,7 @@ func handler(request events.APIGatewayWebsocketProxyRequest) (events.APIGatewayP
 			// In this case it's player 2 and this should send an update to player 1 as well that player 2 has joined
 			// use APIGateway.Post for this.
 			// If the connection doesn't work, we need to drop it as the player might have disconnected
+			//TO-DO: Make this endpoint dynamic!
 			endpoint := "4cpq656h77.execute-api.eu-central-1.amazonaws.com/tictacgo-development-232d7a6"
 			gwApi := apigatewaymanagementapi.New(session.New(&aws.Config{
 				Endpoint: &endpoint,
