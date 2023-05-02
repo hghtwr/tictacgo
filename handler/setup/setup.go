@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"encoding/json"
 
@@ -51,7 +52,9 @@ func handler(request events.APIGatewayWebsocketProxyRequest) (events.APIGatewayP
 		fmt.Println(err)
 	}
 
-	tableName := "tictacgo-e8e3a4a"
+	tableName := os.Getenv("TABLE_NAME") //"tictacgo-e8e3a4a"
+	apigateAddress := os.Getenv("APIGATEWAY_ADDRESS")
+	println(tableName)
 	gameId := requestBody.Params["gameId"]
 	playerName := requestBody.Params["playerName"]
 	svc := dynamodb.New(session.New())
@@ -120,7 +123,7 @@ func handler(request events.APIGatewayWebsocketProxyRequest) (events.APIGatewayP
 			// use APIGateway.Post for this.
 			// If the connection doesn't work, we need to drop it as the player might have disconnected
 			//TO-DO: Make this endpoint dynamic!
-			endpoint := "4cpq656h77.execute-api.eu-central-1.amazonaws.com/tictacgo-development-232d7a6"
+			endpoint := apigateAddress
 			gwApi := apigatewaymanagementapi.New(session.New(&aws.Config{
 				Endpoint: &endpoint,
 				Region:   aws.String("eu-central-1")},

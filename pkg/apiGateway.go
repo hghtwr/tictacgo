@@ -26,15 +26,6 @@ func ApiGatewayStage(ctx *pulumi.Context, gw *apigatewayv2.Api, stageName string
 	return stage, err
 }
 
-/*
-func ApiGatewayDeployment(ctx *pulumi.Context, gw *apigatewayv2.Api) (stage *apigatewayv2.Stage, err error) {
-	stage, err = apigatewayv2.NewStage(ctx, "development", &apigatewayv2.StageArgs{
-		ApiId:      gw.ID(),
-		AutoDeploy: pulumi.Bool(true),
-	})
-	return stage, err
-}*/
-
 func CreateIntegration(ctx *pulumi.Context, gw *apigatewayv2.Api, function *lambda.Function, routeKey string) (onConnectIntegration *apigatewayv2.Integration, err error) {
 
 	onConnectIntegration, err = apigatewayv2.NewIntegration(ctx, "tictacgo-"+routeKey+"-integration", &apigatewayv2.IntegrationArgs{
@@ -66,21 +57,6 @@ func CreateRoute(ctx *pulumi.Context, gw *apigatewayv2.Api, integration *apigate
 	return route, err
 }
 
-/*
-func CreateResponse(ctx *pulumi.Context, gw *apigatewayv2.Api, integration *apigatewayv2.Integration, routeKey string) (response *apigatewayv2.IntegrationResponse, err error) {
-
-		integrationId := integration.ID().ApplyT(func(id pulumi.ID) string {
-			return string(id)
-		}).(pulumi.StringOutput)
-
-		response, err = apigatewayv2.NewIntegrationResponse(ctx, "tictacgo-"+routeKey+"-response", &apigatewayv2.IntegrationResponseArgs{
-			ApiId:                  gw.ID(),
-			IntegrationId:          integrationId,
-			IntegrationResponseKey: pulumi.String("$default"),
-		})
-		return response, err
-	}
-*/
 func CreateResponse(ctx *pulumi.Context, gw *apigatewayv2.Api, route *apigatewayv2.Route, routeKey string) (response *apigatewayv2.RouteResponse, err error) {
 
 	integrationId := route.ID().ApplyT(func(id pulumi.ID) string {

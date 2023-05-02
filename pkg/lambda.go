@@ -11,25 +11,31 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-func CreateIam(ctx *pulumi.Context, routeKey string) (iamRole *iam.Role, err error) {
+func CreateIam(ctx *pulumi.Context, routeKey string, gw *apigatewayv2.Api) (iamRole *iam.Role, err error) {
 	accountId, err := aws.GetAccountId(ctx)
 	if err != nil {
 		return iamRole, err
 	}
+	arn := gw.ID().ApplyT(func(id pulumi.ID) string {
+		return string(id)
+	}).(pulumi.StringOutput)
+
+	//target := pulumi.Sprintf("arn:aws:execute-api:eu-central-1:%s:%s/*/%s", accountId.AccountId, arn, routeKey)
+
 	iamRole, err = iam.NewRole(ctx, "tictacgo-"+strings.Trim(routeKey, "$"), &iam.RoleArgs{
 		InlinePolicies: iam.RoleInlinePolicyArray{
 			&iam.RoleInlinePolicyArgs{
 				Name: pulumi.String(fmt.Sprintf("manage-api-%s", strings.Trim(routeKey, "$"))),
-				Policy: pulumi.String(fmt.Sprintf(`{
-					"Version": "2012-10-17",
-					"Statement": [
-						{
-							"Effect": "Allow",
-							"Action": "execute-api:ManageConnections",
-							"Resource": "arn:aws:execute-api:eu-central-1:%s:4cpq656h77/tictacgo-development-*/POST/@connections/*"
-						}
-					]
-				}`, accountId.AccountId)),
+				Policy: pulumi.Sprintf(`{
+				"Version": "2012-10-17",
+				"Statement": [
+					{
+						"Effect": "Allow",
+						"Action": "execute-api:ManageConnections",
+						"Resource": "arn:aws:execute-api:eu-central-1:%s:%s/tictacgo-development-*/POST/@connections/*"
+					}
+				]
+			}`, accountId.AccountId, arn),
 			},
 			&iam.RoleInlinePolicyArgs{
 				Name: pulumi.String(fmt.Sprintf("logs-%s", strings.Trim(routeKey, "$"))),
@@ -91,16 +97,22 @@ func CreateIam(ctx *pulumi.Context, routeKey string) (iamRole *iam.Role, err err
 	return iamRole, err
 }
 
-func CreateFunction(ctx *pulumi.Context, role *iam.Role, routeKey string) (function *lambda.Function, err error) {
+func CreateFunction(ctx *pulumi.Context, role *iam.Role, routeKey string, dbId pulumi.StringOutput, gwStage *apigatewayv2.Stage) (function *lambda.Function, err error) {
 	//role, err := OnConnectIam(ctx)
 
 	args := &lambda.FunctionArgs{
 		Handler: pulumi.String(strings.Trim(routeKey, "$")),
 		Runtime: pulumi.String("go1.x"),
-		Role:    role.Arn,
-		Code:    pulumi.NewFileArchive("./handler/" + strings.Trim(routeKey, "$") + ".zip"),
-
-		//Code:    pulumi.NewFileArchive("./handler/handler.zip"),
+		Environment: &lambda.FunctionEnvironmentArgs{
+			Variables: pulumi.StringMap{
+				"TABLE_NAME": pulumi.Sprintf("%s", dbId),
+				"APIGATEWAY_ADDRESS": gwStage.InvokeUrl.ApplyT(func(url string) string {
+					return strings.TrimPrefix(url, "wss://")
+				}).(pulumi.StringOutput),
+			},
+		},
+		Role: role.Arn,
+		Code: pulumi.NewFileArchive("./handler/" + strings.Trim(routeKey, "$") + ".zip"),
 	}
 
 	// Create the lambda using the args.

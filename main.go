@@ -7,23 +7,30 @@ import (
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
-		_, err := pkg.DynamoDb(ctx)
+		db, err := pkg.DynamoDb(ctx)
 		if err != nil {
 			return err
 		}
+
+		dbId := db.ID().ToStringOutput()
+
 		gw, err := pkg.ApiGateway(ctx)
+		if err != nil {
+			return err
+		}
+		gwStage, err := pkg.ApiGatewayStage(ctx, gw, "development")
 		if err != nil {
 			return err
 		}
 
 		//############################ OnConnect #################################
-		onConnectIamRole, err := pkg.CreateIam(ctx, "$connect")
+		onConnectIamRole, err := pkg.CreateIam(ctx, "$connect", gw)
 
 		if err != nil {
 			return err
 		}
 
-		onConnectLambdaFunction, err := pkg.CreateFunction(ctx, onConnectIamRole, "$connect")
+		onConnectLambdaFunction, err := pkg.CreateFunction(ctx, onConnectIamRole, "$connect", dbId, gwStage)
 		if err != nil {
 			return err
 		}
@@ -47,13 +54,13 @@ func main() {
 			return err
 		}
 		//############################ Disconnect #################################
-		onDisconnectIamRole, err := pkg.CreateIam(ctx, "$disconnect")
+		onDisconnectIamRole, err := pkg.CreateIam(ctx, "$disconnect", gw)
 
 		if err != nil {
 			return err
 		}
 
-		onDisconnectLambdaFunction, err := pkg.CreateFunction(ctx, onDisconnectIamRole, "$disconnect")
+		onDisconnectLambdaFunction, err := pkg.CreateFunction(ctx, onDisconnectIamRole, "$disconnect", dbId, gwStage)
 		if err != nil {
 			return err
 		}
@@ -77,13 +84,13 @@ func main() {
 			return err
 		}
 		//############################ Setup #################################
-		onSetupIamRole, err := pkg.CreateIam(ctx, "setup")
+		onSetupIamRole, err := pkg.CreateIam(ctx, "setup", gw)
 
 		if err != nil {
 			return err
 		}
 
-		onSetupLambdaFunction, err := pkg.CreateFunction(ctx, onSetupIamRole, "setup")
+		onSetupLambdaFunction, err := pkg.CreateFunction(ctx, onSetupIamRole, "setup", dbId, gwStage)
 		if err != nil {
 			return err
 		}
@@ -108,13 +115,13 @@ func main() {
 		}
 
 		//############################ Turn #################################
-		onTurnIamRole, err := pkg.CreateIam(ctx, "turn")
+		onTurnIamRole, err := pkg.CreateIam(ctx, "turn", gw)
 
 		if err != nil {
 			return err
 		}
 
-		onTurnLambdaFunction, err := pkg.CreateFunction(ctx, onTurnIamRole, "turn")
+		onTurnLambdaFunction, err := pkg.CreateFunction(ctx, onTurnIamRole, "turn", dbId, gwStage)
 		if err != nil {
 			return err
 		}
@@ -138,10 +145,6 @@ func main() {
 			return err
 		}
 
-		_, err = pkg.ApiGatewayStage(ctx, gw, "development")
-		if err != nil {
-			return err
-		}
 		return nil
 	})
 }
